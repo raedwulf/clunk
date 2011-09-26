@@ -26,18 +26,6 @@
 #include <cassert>
 #include <cmath>
 
-// Precalculate sinc table
-#define SINC_PRECALCULATE
-// controls the number of neighbouring samples which are used to interpolate
-// the new samples.  The processing time is linear related to this width.
-#define SINC_WIDTH 128
-// how finely tuned the sinc function is stored in the table
-#define SINC_SAMPLES_PER_ZERO_CROSSING 32
-// ditto... double version
-#define SINC_SAMPLES_PER_ZERO_CROSSING_DBL ((double)SINC_SAMPLES_PER_ZERO_CROSSING)
-
-#define SINC_WIN_FREQ (M_PI / (SINC_WIDTH/2) / SINC_SAMPLES_PER_ZERO_CROSSING)
-
 namespace clunk {
 
 template <typename T = double, int Width = 128>
