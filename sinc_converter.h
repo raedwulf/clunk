@@ -77,11 +77,15 @@ class CLUNKAPI SincConverter : public Converter {
 public:
 	SincConverter(const int dst_rate, const Uint16 dst_format, const int src_rate,
 		const Uint16 src_format, const Uint8 channels) {
+		// Settings
 		this->dst_rate = dst_rate;
 		this->src_rate = src_rate;
 		this->dst_format = dst_format;
 		this->src_format = src_format;
 		this->channels = channels;
+		// Silence
+		buffer.set_size(WindowWidth/2 * channels * 2);
+		buffer.fill(0);
 	}
 	void convert(clunk::Buffer &dst, const clunk::Buffer &src) {
 		T ratio = T(dst_rate) / T(src_rate);
@@ -89,8 +93,11 @@ public:
 		int samples = src.get_size() / (channels * 2);
 		int dsamples = ratio * samples;
 		dst.set_size(dsamples * (channels * 2));
+		dst.fill(0);
 
-		Sint16 *s = (Sint16 *)src.get_ptr();
+		// Add more src data
+		buffer.append(src);
+		Sint16 *s = (Sint16 *)buffer.get_ptr() + WindowWidth/2;
 		Sint16 *d = (Sint16 *)dst.get_ptr();
 		int k = 0;
 		int l = 0;
@@ -107,20 +114,16 @@ public:
 				// Clamp window sides
 				if (left < 0) left = 0;
 				if (right >= samples) right = samples - 1;
-				//printf("%g: %d %d\n", t, left, right);
 
 				// Convolution over window with sinc
 				for (int j = left; j < right; j++) {
 					for (int c = 0; c < channels; c++) {
-						Sint16 sv = 0;
-						if (j >= 0 && j < samples)
-							sv =  s[j * channels + c];
+						Sint16 sv =  s[j * channels + c];
 						d[k + c] += sv *
 							ratio *
 							kernel(ratio * (t - j));
 					}
 				}
-				//printf("out: %d\n", d[k]);
 				k += channels;
 			}
 		} else {
@@ -138,21 +141,21 @@ public:
 				// Convolution over window with sinc
 				for (int j = left; j < right; j++) {
 					for (int c = 0; c < channels; c++) {
-						Sint16 sv = 0;
-						if (j >= 0 && j < samples)
-							sv =  s[j * channels + c];
+						Sint16 sv =  s[j * channels + c];
 						d[k + c] += sv * kernel(t - j);
 					}
 				}
 				k += channels;
 			}
 		}
+		buffer.pop(buffer.get_size() - (WindowWidth/2) * channels * 2);
 	}
 private:
 	int dst_rate, src_rate;
 	Uint16 dst_format, src_format;
 	Uint8 channels;
 	Kernel kernel;
+	clunk::Buffer buffer;
 };
 
 }
