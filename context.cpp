@@ -24,8 +24,9 @@
 #include "sdl_ex.h"
 #include "logger.h"
 #include "source.h"
+#include "sinc_converter.h"
 #include "sdl_converter.h"
-#include "lsr_converter.h"
+//#include "lsr_converter.h"
 #include <assert.h>
 #define _USE_MATH_DEFINES
 #include <math.h>
@@ -380,7 +381,8 @@ void Context::set_max_sources(int sources) {
 
 void Context::convert(clunk::Buffer &dst, const clunk::Buffer &src, int rate, const Uint16 format, const Uint8 channels) {
 	//printf("convert %d %d %d\n", rate, format, channels);
-	LSRConverter converter(sample_rate, AUDIO_S16SYS, rate, format, channels);
+	//LSRConverter converter(sample_rate, AUDIO_S16SYS, rate, format, channels);
+	SincConverter converter(sample_rate, AUDIO_S16SYS, rate, format, channels);
 	converter.convert(dst, src);
 }
 
