@@ -382,7 +382,7 @@ void Context::set_max_sources(int sources) {
 void Context::convert(clunk::Buffer &dst, const clunk::Buffer &src, int rate, const Uint16 format, const Uint8 channels) {
 	//printf("convert %d %d %d\n", rate, format, channels);
 	//LSRConverter converter(sample_rate, AUDIO_S16SYS, rate, format, channels);
-	SincConverter converter(sample_rate, AUDIO_S16SYS, rate, format, channels);
+	SincConverter<> converter(sample_rate, AUDIO_S16SYS, rate, format, channels);
 	converter.convert(dst, src);
 }
 

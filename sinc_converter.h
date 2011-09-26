@@ -40,100 +40,120 @@
 
 namespace clunk {
 
-/*template <typename T>*/
-//struct HannWindow
-//{
-	//operator
-//}
+template <typename T = double, int Width = 128>
+struct HannZeroWindow
+{
+	inline T operator()(T n)
+	{
+		return T(0.5) + T(0.5) * cos((2 * M_PI * n) / (Width - 1));
+	}
+};
 
-//template <typename window_function = HannWindow<T>, typename T = double>
-//struct SincKernel
-//{
-	//operator (double x)
-	//{
-	//}
-//};
+template <typename T = double, int Width = 128, int Resolution = 32,
+	 typename Window = HannZeroWindow<T, Width> >
+struct SincKernel
+{
+	SincKernel()
+	{
+		table[0] = T(1.0);
+		for (int i = 1; i < (Width/2) * Resolution; i++) {
+			T n, x, nsinc;
+			n = T(i) / T(Resolution);
+			x = n * M_PI;
+			nsinc = sin(x) / x;
+			table[i] = nsinc * window(n);
+		}
+	}
 
-/*template <typename resampling_kernel>*/
+	inline T operator()(T x)
+	{
+		// Linear interpolation, TODO: Something better...
+		T fabsx = fabs(x);
+		if (fabsx >= Width/2)
+			return 0;
+		T x1 = fabsx * T(Resolution);
+		int x_ = x1;
+		T delta = x1 - x_;
+		// linearly interpolate the table entries
+		T a = table[x_];
+		T b = table[x_ + 1];
+		return (a + (b - a) * delta);
+	}
 
+	T table[Width/2 * Resolution];
+	Window window;
+};
+
+template <typename T = double, int WindowWidth = 128, typename Kernel = SincKernel<double, WindowWidth> >
 class CLUNKAPI SincConverter : public Converter {
 public:
 	SincConverter(const int dst_rate, const Uint16 dst_format, const int src_rate,
 		const Uint16 src_format, const Uint8 channels) {
-#ifdef SINC_PRECALCULATE
-		// Create the sinc table
-		for (int i = 0; i < (SINC_WIDTH/2) *
-			SINC_SAMPLES_PER_ZERO_CROSSING; i++) {
-			double x = i * M_PI / SINC_SAMPLES_PER_ZERO_CROSSING;
-			double sinmxinv = x == 0.0 ? 1.0 : sin(x) / x;
-			// TODO: Use kaiser windowing function here...
-			sinc_table[i] = sinmxinv * (0.5 + 0.5 * cos(SINC_WIN_FREQ * i));
-		}
-#endif
-		// Converter parameters
 		this->dst_rate = dst_rate;
 		this->src_rate = src_rate;
+		this->dst_format = dst_format;
+		this->src_format = src_format;
 		this->channels = channels;
 	}
 	void convert(clunk::Buffer &dst, const clunk::Buffer &src) {
-		double ratio = dst_rate / src_rate;
-		double invratio = 1 / ratio;
+		T ratio = T(dst_rate) / T(src_rate);
+		T invratio = 1 / ratio;
 		int samples = src.get_size() / (channels * 2);
 		int dsamples = ratio * samples;
 		dst.set_size(dsamples * (channels * 2));
 
-		int16_t *s = (int16_t *)src.get_ptr();
-		int16_t *d = (int16_t *)dst.get_ptr();
+		Sint16 *s = (Sint16 *)src.get_ptr();
+		Sint16 *d = (Sint16 *)dst.get_ptr();
 		int k = 0;
 		int l = 0;
 
 		if (invratio > 1.0) {
 			int last_time;
-			for (double t = 0; t < samples; t += invratio) {
+			for (T t = 0; t < samples; t += invratio) {
 				int i = t;
 
 				// Window limits
-				int left = t - SINC_WIDTH/2 + 1;
-				int right = t + SINC_WIDTH/2;
+				int left = t - WindowWidth/2 + 1;
+				int right = t + WindowWidth/2;
 
 				// Clamp window sides
-				//if (left < 0) left = 0;
-				//if (right >= samples) right = samples - 1;
+				if (left < 0) left = 0;
+				if (right >= samples) right = samples - 1;
 				//printf("%g: %d %d\n", t, left, right);
 
 				// Convolution over window with sinc
 				for (int j = left; j < right; j++) {
 					for (int c = 0; c < channels; c++) {
-						int16_t sv = 0;
+						Sint16 sv = 0;
 						if (j >= 0 && j < samples)
 							sv =  s[j * channels + c];
 						d[k + c] += sv *
 							ratio *
-							sinc(ratio * (t - j));
+							kernel(ratio * (t - j));
 					}
 				}
 				//printf("out: %d\n", d[k]);
 				k += channels;
 			}
 		} else {
-			for (double t = 0; t < samples; t += invratio) {
+			for (T t = 0; t < samples; t += invratio) {
 				int i = t;
 
 				// Window limits
-				int left = t - SINC_WIDTH/2 + 1;
-				int right = t + SINC_WIDTH/2;
+				int left = t - WindowWidth/2 + 1;
+				int right = t + WindowWidth/2;
 
 				// Clamp window sides
-				//if (left < 0) left = 0;
-				//if (right >= samples) right = samples - 1;
+				if (left < 0) left = 0;
+				if (right >= samples) right = samples - 1;
 
 				// Convolution over window with sinc
 				for (int j = left; j < right; j++) {
 					for (int c = 0; c < channels; c++) {
-						int16_t sv = 0;
+						Sint16 sv = 0;
 						if (j >= 0 && j < samples)
 							sv =  s[j * channels + c];
-						d[k + c] += sv * sinc(t - j);
+						d[k + c] += sv * kernel(t - j);
 					}
 				}
 				k += channels;
@@ -141,27 +161,10 @@ public:
 		}
 	}
 private:
-	inline double sinc(double x) {
-#ifdef SINC_PRECALCULATE
-		double fabsx = fabs(x);
-		if (fabsx > SINC_WIDTH/2 - 1)
-			return 0;
-		double x1 = fabsx * SINC_SAMPLES_PER_ZERO_CROSSING_DBL;
-		int x_ = x1;
-		double delta = x1 - x_;
-		// linearly interpolate the table entries
-		double a = sinc_table[x_];
-		double b = sinc_table[x_ + 1];
-		return (a + (b - a) * delta);
-#else
-		return x == 0.0 ? 1.0 : sin(x * M_PI) / (x * M_PI);
-#endif
-	}
-	double dst_rate, src_rate;
-	int channels;
-#ifdef SINC_PRECALCULATE
-	double sinc_table[SINC_WIDTH/2 * SINC_SAMPLES_PER_ZERO_CROSSING];
-#endif
+	int dst_rate, src_rate;
+	Uint16 dst_format, src_format;
+	Uint8 channels;
+	Kernel kernel;
 };
 
 }

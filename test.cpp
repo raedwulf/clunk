@@ -44,7 +44,7 @@ int main(int argc, char *argv[]) {
 	clunk::Object * o = context.create_object();
 	clunk::Sample * s = context.create_sample();
 
-	s->load("scissors.wav");
+	s->load("scissors2.wav");
 	static const int d = 2, n = 6;
 	
 	context.save("test_out.raw");
