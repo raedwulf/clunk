@@ -21,6 +21,7 @@
 
 
 #include "export_clunk.h"
+#include "converter.h"
 #include <SDL_audio.h>
 
 namespace clunk {

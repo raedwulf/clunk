@@ -11,7 +11,7 @@ int main(int argc, char *argv[])
 	clunk_object *o = clunk_context_create_object(context);
 	clunk_sample *s = clunk_context_create_sample(context);
 
-	clunk_sample_load(s, "scissors.wav");
+	clunk_sample_load(s, "scissors2.wav");
 	
 	clunk_context_save(context, "test_out.raw");
 

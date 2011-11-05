@@ -31,6 +31,7 @@
 #include "sample.h"
 #include "buffer.h"
 #include "distance_model.h"
+#include "converter.h"
 
 namespace clunk {
 
@@ -137,6 +138,8 @@ public:
 
 private: 
 	SDL_AudioSpec spec;
+	int sample_rate;
+	int channels;
 	int period_size;
 
 	static void callback(void *userdata, Uint8 *stream, int len);
@@ -155,6 +158,7 @@ private:
 		float gain;
 		bool paused;
 		clunk::Buffer buffer;
+		clunk::Converter *converter;
 	};
 	
 	typedef std::map<const int, stream_info> streams_type;

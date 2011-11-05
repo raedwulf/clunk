@@ -24,12 +24,15 @@
 #include "sdl_ex.h"
 #include "logger.h"
 #include "source.h"
+#include "sdl_converter.h"
+#include "lsr_converter.h"
 #include <assert.h>
 #define _USE_MATH_DEFINES
 #include <math.h>
 #include <map>
 #include <algorithm>
 #include <vector>
+#include <climits>
 #include "locker.h"
 #include "stream.h"
 #include "object.h"
@@ -119,8 +122,9 @@ void Context::process(Sint16 *stream, int size) {
 			clunk::Buffer data;
 			bool eos = !stream_info.stream->read(data, size);
 			if (!data.empty() && stream_info.stream->sample_rate != spec.freq) {
+				stream_info.converter->convert(data, data);
 				//LOG_DEBUG(("converting audio data from %u to %u", stream_info.stream->sample_rate, spec.freq));
-				convert(data, data, stream_info.stream->sample_rate, stream_info.stream->format, stream_info.stream->channels);
+				//convert(data, data, stream_info.stream->sample_rate, stream_info.stream->format, stream_info.stream->channels);
 			}
 			stream_info.buffer.append(data);
 			//LOG_DEBUG(("read %u bytes", (unsigned)data.get_size()));
@@ -147,8 +151,18 @@ void Context::process(Sint16 *stream, int size) {
 		if (buf_size >= size)
 			buf_size = size;
 
-		int sdl_v = (int)floor(SDL_MIX_MAXVOLUME * stream_info.gain + 0.5f);
-		SDL_MixAudio((Uint8 *)stream, (Uint8 *)stream_info.buffer.get_ptr(), buf_size, sdl_v);
+		int sdl_v = (int)floor(SHRT_MAX * stream_info.gain + 0.5f);
+		Uint16 *p = (Uint16 *)stream_info.buffer.get_ptr();
+		for (int j = 0; j < buf_size / 2; j++) {
+			short v = short((int(p[j]) * int(sdl_v)) / SHRT_MAX);
+			if (stream[j] + v > SHRT_MAX)
+				stream[j] = SHRT_MAX;
+			else if (stream[j] + v < SHRT_MIN)
+				stream[j] = SHRT_MIN;
+			else
+				stream[j] += v;
+		}
+		//SDL_MixAudio((Uint8 *)stream, (Uint8 *)stream_info.buffer.get_ptr(), buf_size, sdl_v);
 		
 		if ((int)stream_info.buffer.get_size() > size) {
 			memmove(stream_info.buffer.get_ptr(), ((Uint8 *)stream_info.buffer.get_ptr()) + size, stream_info.buffer.get_size() - size);
@@ -231,14 +245,12 @@ void Context::init(const int sample_rate, const Uint8 channels, int period_size)
 	
 	SDL_AudioSpec src;
 	memset(&src, 0, sizeof(src));
-	src.freq = sample_rate;
-	src.channels = channels;
+	src.freq = this->sample_rate = sample_rate;
+	src.channels = this->channels = channels;
 	src.format = AUDIO_S16SYS;
-	src.samples = period_size;
+	src.samples = this->period_size = period_size;
 	src.callback = &Context::callback;
 	src.userdata = (void *) this;
-	
-	this->period_size = period_size;
 	
 	if ( SDL_OpenAudio(&src, &spec) < 0 )
 		throw_sdl(("SDL_OpenAudio(%d, %u, %d)", sample_rate, channels, period_size));
@@ -295,6 +307,11 @@ void Context::play(const int id, Stream *stream, bool loop) {
 	stream_info.loop = loop;
 	stream_info.paused = false;
 	stream_info.gain = 1.0f;
+	if (stream_info.stream->sample_rate != spec.freq) {
+		stream_info.converter = new SDLConverter(sample_rate, AUDIO_S16SYS, stream_info.stream->sample_rate, stream_info.stream->format, channels);
+	} else {
+		stream_info.converter = 0;
+	}
 }
 
 bool Context::playing(const int id) const {
@@ -362,22 +379,9 @@ void Context::set_max_sources(int sources) {
 }
 
 void Context::convert(clunk::Buffer &dst, const clunk::Buffer &src, int rate, const Uint16 format, const Uint8 channels) {
-	SDL_AudioCVT cvt;
-	memset(&cvt, 0, sizeof(cvt));
-	if (SDL_BuildAudioCVT(&cvt, format, channels, rate, spec.format, channels, spec.freq) == -1) {
-		throw_sdl(("DL_BuildAudioCVT(%d, %04x, %u)", rate, format, channels));
-	}
-	size_t buf_size = (size_t)(src.get_size() * cvt.len_mult);
-	cvt.buf = (Uint8 *)malloc(buf_size);
-	cvt.len = (int)src.get_size();
-
-	assert(buf_size >= src.get_size());
-	memcpy(cvt.buf, src.get_ptr(), src.get_size());
-
-	if (SDL_ConvertAudio(&cvt) == -1) 
-		throw_sdl(("SDL_ConvertAudio"));
-
-	dst.set_data(cvt.buf, (size_t)(cvt.len * cvt.len_ratio), true);
+	//printf("convert %d %d %d\n", rate, format, channels);
+	LSRConverter converter(sample_rate, AUDIO_S16SYS, rate, format, channels);
+	converter.convert(dst, src);
 }
 
 /*!

@@ -3,17 +3,26 @@ import os, sys
 env = Environment()
 debug = False
 
+have_samplerate = True
+#have_samplerate = False
+
 sdl_cflags = env.ParseFlags('!pkg-config --cflags sdl')
 sdl_libs = env.ParseFlags('!pkg-config --libs sdl')
+samplerate_cflags = env.ParseFlags('!pkg-config --cflags samplerate')
+samplerate_libs = env.ParseFlags('!pkg-config --libs samplerate')
 
 env.MergeFlags(sdl_cflags)
 env.MergeFlags(sdl_libs)
 
+if have_samplerate:
+	env.MergeFlags(samplerate_cflags)
+	env.MergeFlags(samplerate_libs)
+
 lib_dir = '.'
 have_sse = False
 #have_sse = True
-#debug = True
-debug = False
+debug = True
+#debug = False
 prefix = ''
 
 Export('sdl_cflags')
@@ -45,7 +54,7 @@ if have_sse:
 
 clunk = env.SharedLibrary('clunk', 
 	clunk_src, 
-	LIBS=['SDL'])
+	LIBS=['SDL','samplerate'])
 
 
 if sys.platform != 'win32':
