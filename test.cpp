@@ -1,6 +1,6 @@
 #include "context.h"
 #include "source.h"
-#include <stdlib.h>
+#include <cstdlib>
 
 #define WINDOW_BITS 9
 

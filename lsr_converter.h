@@ -19,6 +19,12 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA
 */
 
+#include "config.h"
+#ifndef WITH_LIBSAMPLERATE
+#error "libsamplerate support not compiled in."
+#endif
+
+#include <export_clunk.h>
 #include <samplerate.h>
 #include <cassert>
 #include "converter.h"

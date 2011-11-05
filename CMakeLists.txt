@@ -1,29 +1,40 @@
 project(clunk)
 cmake_minimum_required(VERSION 2.6)
+
+# Additional cmake scripts
 set(CMAKE_MODULE_PATH ${CMAKE_SOURCE_DIR}/cmake)
-set(CMAKE_USE_RELATIVE_PATHS TRUE)
 
-find_package(SDL REQUIRED)
-option(WITH_SSE "Use highly optimized SSE FFT/MDCT routines" false)
-
-if ( NOT SDL_FOUND )
-	message ( FATAL_ERROR "SDL not found!" )
-endif ( NOT SDL_FOUND )
-
-find_package(libsamplerate REQUIRED)
-
+# Clunk version
 set(clunk_VERSION_MAJOR 1)
 set(clunk_VERSION_MINOR 0)
 
+# SDL
+find_package(SDL REQUIRED)
+option(WITH_SSE "Use highly optimized SSE FFT/MDCT routines" false)
+
+# libsamplerate
+find_package(libsamplerate)
+option(WITH_LIBSAMPLERATE "Enable libsamplerate support" ${LIBSAMPLERATE_FOUND})
+configure_file(${CMAKE_SOURCE_DIR}/config.h.cmake ${CMAKE_BINARY_DIR}/config.h @ONLY)
+
+# Add package libraries to list
+set(INCLUDE_DIRS ${SDL_INCLUDE_DIR})
+set(LIBRARIES ${SDL_LIBRARY})
+if(WITH_LIBSAMPLERATE)
+	list(APPEND INCLUDE_DIRS ${LIBSAMPLERATE_INCLUDE_DIR})
+	list(APPEND LIBRARIES ${LIBSAMPLERATE_LIBRARIES})
+endif(WITH_LIBSAMPLERATE)
+
+# Compiler defintions
 if(WIN32)
 	add_definitions(-D_CRT_SECURE_NO_WARNINGS -D_WINDOWS)
 endif(WIN32)
 
 add_definitions(-DCLUNKAPI=DLLEXPORT)
 set(CMAKE_INCLUDE_CURRENT_DIR TRUE)
-include_directories(${SDL_INCLUDE_DIR} ${LIBSAMPLERATE_INCLUDE_DIR})
 
-set(SOURCES 
+# Source files
+set(SOURCES
 	buffer.cpp
 	clunk_ex.cpp
 	context.cpp
@@ -55,19 +66,22 @@ set(PUBLIC_HEADERS
 	stream.h
 	v3.h
 	clunk_c.h
+	${CMAKE_BINARY_DIR}/config.h
 )
 
-if (WITH_SSE)
+if(WITH_SSE)
 	set(SOURCES ${SOURCES} sse_fft_context.cpp)
 	add_definitions(-DCLUNK_USES_SSE)
 endif(WITH_SSE)
 
-add_library(clunk SHARED
-	${SOURCES}
-)
+include_directories(${INCLUDE_DIRS})
+add_library(clunk SHARED ${SOURCES})
+target_link_libraries(clunk ${LIBRARIES})
 
 install(TARGETS clunk DESTINATION lib)
 install(FILES ${PUBLIC_HEADERS} DESTINATION include/clunk)
 
-target_link_libraries(clunk ${SDL_LIBRARY} ${LIBSAMPLERATE_LIBRARIES})
-
+add_executable(clunk_test test.cpp)
+target_link_libraries(clunk_test clunk)
+add_executable(clunk_c_test test_c.c)
+target_link_libraries(clunk_c_test clunk)

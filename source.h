@@ -21,13 +21,14 @@
 #ifndef _USE_MATH_DEFINES
 #define _USE_MATH_DEFINES
 #endif
-#include <math.h>
-
-#include <SDL_audio.h>
+#include "config.h"
 #include "export_clunk.h"
 #include "v3.h"
 #include "mdct_context.h"
 #include "buffer.h"
+
+#include <math.h>
+#include <SDL_audio.h>
 
 struct kiss_fftr_state;
 

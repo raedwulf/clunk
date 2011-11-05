@@ -1,6 +1,7 @@
 #ifndef MDCT_CONTEXT_H__
 #define MDCT_CONTEXT_H__
 
+#include "config.h"
 #include "fft_context.h"
 #include "clunk_assert.h"
 #include <string.h>

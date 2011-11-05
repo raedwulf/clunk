@@ -19,8 +19,9 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA
 */
 
-#include <SDL_audio.h>
+#include "config.h"
 #include "export_clunk.h"
+#include <SDL_audio.h>
 namespace clunk {
 
 /*! 

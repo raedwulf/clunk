@@ -26,6 +26,7 @@
 #include <stdio.h>
 #include <SDL_audio.h>
 
+#include "config.h"
 #include "export_clunk.h"
 #include "object.h"
 #include "sample.h"

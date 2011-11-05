@@ -19,10 +19,10 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA
 */
 
-
+#include "config.h"
+#include "logger.h"
 #include <exception>
 #include <string>
-#include "logger.h"
 
 namespace clunk {
 	class CLUNKAPI Exception : public std::exception {

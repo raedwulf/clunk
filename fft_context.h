@@ -4,6 +4,7 @@
 #ifndef _USE_MATH_DEFINES
 #define _USE_MATH_DEFINES
 #endif
+#include "config.h"
 #include <math.h>
 #include <complex>
 #include <assert.h>
